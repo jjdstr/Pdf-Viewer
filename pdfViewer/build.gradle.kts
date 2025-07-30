@@ -1,6 +1,3 @@
-import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
-import com.vanniktech.maven.publish.SonatypeHost
-
 plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
@@ -78,45 +75,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-}
-
-mavenPublishing {
-    configure(
-        AndroidSingleVariantLibrary(
-            // the published variant
-            variant = "release",
-            // whether to publish a sources jar
-            sourcesJar = true,
-        )
-    )
-
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
-
-    coordinates("io.github.afreakyelf", "Pdf-Viewer", "2.3.7")
-
-    pom {
-        name.set("PDF Viewer")
-        description.set("A PDF viewing library for Android")
-        url.set("https://github.com/afreakyelf/pdfviewer")
-        licenses {
-            license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
-            }
-        }
-        developers {
-            developer {
-                id.set("afreakyelf")
-                name.set("Rajat Mittal")
-                email.set("rjmittal07@gmail.com")
-            }
-        }
-        scm {
-            connection.set("scm:git:git://github.com/afreakyelf/pdfviewer.git")
-            developerConnection.set("scm:git:ssh://github.com/afreakyelf/pdfviewer.git")
-            url.set("https://github.com/afreakyelf/pdfviewer")
-        }
-    }
-
 }
