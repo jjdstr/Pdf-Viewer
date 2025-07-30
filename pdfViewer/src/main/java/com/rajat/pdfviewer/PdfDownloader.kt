@@ -188,9 +188,10 @@ class PdfDownloader(
         }
 
         val contentType = response.header("Content-Type", "")
-        if (!contentType.isNullOrEmpty() && !contentType.contains(
-                "application/pdf",
-                ignoreCase = true
+        if (!contentType.isNullOrEmpty() 
+            && !(
+                contentType.contains("application/pdf", ignoreCase = true)
+                || contentType.contains("application/octet-stream", ignoreCase = true)
             )
         ) {
             throw InvalidPdfException("Invalid content type received: $contentType. Expected a PDF file.")
