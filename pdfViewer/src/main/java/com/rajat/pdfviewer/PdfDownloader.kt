@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.rajat.pdfviewer.util.CacheManager
+import com.rajat.pdfviewer.util.CacheManager.Companion.CACHE_PATH
 import com.rajat.pdfviewer.util.CacheStrategy
 import com.rajat.pdfviewer.util.FileUtils.getCachedFileName
 import com.rajat.pdfviewer.util.FileUtils.isValidPdf
@@ -83,12 +84,12 @@ class PdfDownloader(
         val cachedFileName = getCachedFileName(downloadUrl)
 
         if (cacheStrategy != CacheStrategy.DISABLE_CACHE) {
-            CacheManager.clearCacheDir(listener.getContext())
+            CacheManager.clearCacheDir(listener.getContext(), cachedFileName)
         }
 
         val cacheDir = File(
             listener.getContext().cacheDir,
-            "___pdf___cache___/$cachedFileName"
+            "$CACHE_PATH/$cachedFileName"
         ).apply { mkdirs() }
 
         val pdfFile = File(cacheDir, cachedFileName)
