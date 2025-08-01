@@ -36,17 +36,27 @@ class PdfDownloader(
     }
 
     fun start() {
-        coroutineScope.launch(Dispatchers.IO) {
-            // Validate URL scheme before proceeding
-            if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
-                withContext(Dispatchers.Main) {
-                    listener.onDownloadError(
-                        IllegalArgumentException("Invalid URL scheme: $url. Expected HTTP or HTTPS.")
-                    )
+        if (activeDownloads.contains(url)) {
+            Log.d(TAG, "Download already in progress for URL: $url")
+            // Optionally, notify the listener that a download is already in progress
+            return
+        }
+        activeDownloads.add(url)
+        try {
+            coroutineScope.launch(Dispatchers.IO) {
+                // Validate URL scheme before proceeding
+                if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+                    withContext(Dispatchers.Main) {
+                        listener.onDownloadError(
+                            IllegalArgumentException("Invalid URL scheme: $url. Expected HTTP or HTTPS.")
+                        )
+                    }
+                    return@launch
                 }
-                return@launch
+                checkAndDownload(url)
             }
-            checkAndDownload(url)
+        } finally {
+            activeDownloads.remove(url)
         }
     }
 
@@ -55,6 +65,7 @@ class PdfDownloader(
         private const val MAX_RETRIES = 2
         private const val RETRY_DELAY = 2000L
 
+        private val activeDownloads = mutableSetOf<String>()
         private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
             .followRedirects(true)
             .followSslRedirects(true)
