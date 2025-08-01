@@ -66,11 +66,17 @@ class PdfDownloader(
         private const val RETRY_DELAY = 2000L
 
         private val activeDownloads = mutableSetOf<String>()
-        private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .build()
+
+        private var defaultHttpClient: OkHttpClient? = null
+
+        @JvmStatic
+        fun defaultHttpClient(): OkHttpClient {
+            return defaultHttpClient ?: OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                .build().also { defaultHttpClient = it }
+        }
     }
 
     private suspend fun checkAndDownload(downloadUrl: String) {
