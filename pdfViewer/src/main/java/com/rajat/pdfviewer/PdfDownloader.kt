@@ -9,17 +9,14 @@ import com.rajat.pdfviewer.util.CacheStrategy
 import com.rajat.pdfviewer.util.FileUtils.getCachedFileName
 import com.rajat.pdfviewer.util.FileUtils.isValidPdf
 import com.rajat.pdfviewer.util.FileUtils.writeFile
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+
 
 class PdfDownloader(
     private val coroutineScope: CoroutineScope,
@@ -68,7 +65,7 @@ class PdfDownloader(
     private suspend fun checkAndDownload(downloadUrl: String) {
         val cachedFileName = getCachedFileName(downloadUrl)
 
-        if (cacheStrategy != CacheStrategy.DISABLE_CACHE){
+        if (cacheStrategy != CacheStrategy.DISABLE_CACHE) {
             CacheManager.clearCacheDir(listener.getContext())
         }
 
@@ -188,15 +185,19 @@ class PdfDownloader(
         }
 
         val contentType = response.header("Content-Type", "")
-        if (!contentType.isNullOrEmpty() 
-            && !(
-                contentType.contains("application/pdf", ignoreCase = true)
-                || contentType.contains("application/octet-stream", ignoreCase = true)
-            )
+        if (contentType?.containsAny(
+                listOf("application/pdf", "application/octet-stream"),
+                ignoreCase = true
+            ) == false
         ) {
-            throw InvalidPdfException("Invalid content type received: $contentType. Expected a PDF file.")
+            throw InvalidPdfException("Invalid content type: $contentType. Expected PDF.")
         }
     }
+}
+
+private fun String?.containsAny(listOf: List<String>, ignoreCase: Boolean): Boolean {
+    listOf.forEach { if (this?.contains(it, ignoreCase) == true) return true }
+    return false
 }
 
 class DownloadFailedException(message: String, cause: Throwable? = null) :
