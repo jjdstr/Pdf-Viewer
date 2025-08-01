@@ -90,9 +90,10 @@ class CacheManager(
     companion object {
         const val CACHE_PATH = "___pdf___cache___"
 
-        suspend fun clearCacheDir(context: Context) {
+        suspend fun clearCacheDir(context: Context, cachedFileName: String? = null) {
             withContext(Dispatchers.IO) {
-                val cacheDir = File(context.cacheDir, CACHE_PATH)
+                val cachePath = if (cachedFileName != null) "$CACHE_PATH/$cachedFileName" else CACHE_PATH
+                val cacheDir = File(context.cacheDir, cachePath)
                 if (cacheDir.exists()) {
                     cacheDir.deleteRecursively()
                 }

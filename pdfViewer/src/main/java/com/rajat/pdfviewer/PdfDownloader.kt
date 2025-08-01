@@ -5,21 +5,19 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.rajat.pdfviewer.util.CacheManager
+import com.rajat.pdfviewer.util.CacheManager.Companion.CACHE_PATH
 import com.rajat.pdfviewer.util.CacheStrategy
 import com.rajat.pdfviewer.util.FileUtils.getCachedFileName
 import com.rajat.pdfviewer.util.FileUtils.isValidPdf
 import com.rajat.pdfviewer.util.FileUtils.writeFile
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+
 
 class PdfDownloader(
     private val coroutineScope: CoroutineScope,
@@ -39,17 +37,27 @@ class PdfDownloader(
     }
 
     fun start() {
-        coroutineScope.launch(Dispatchers.IO) {
-            // Validate URL scheme before proceeding
-            if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
-                withContext(Dispatchers.Main) {
-                    listener.onDownloadError(
-                        IllegalArgumentException("Invalid URL scheme: $url. Expected HTTP or HTTPS.")
-                    )
+        if (activeDownloads.contains(url)) {
+            Log.d(TAG, "Download already in progress for URL: $url")
+            // Optionally, notify the listener that a download is already in progress
+            return
+        }
+        activeDownloads.add(url)
+        try {
+            coroutineScope.launch(Dispatchers.IO) {
+                // Validate URL scheme before proceeding
+                if (!url.startsWith("http://", ignoreCase = true) && !url.startsWith("https://", ignoreCase = true)) {
+                    withContext(Dispatchers.Main) {
+                        listener.onDownloadError(
+                            IllegalArgumentException("Invalid URL scheme: $url. Expected HTTP or HTTPS.")
+                        )
+                    }
+                    return@launch
                 }
-                return@launch
+                checkAndDownload(url)
             }
-            checkAndDownload(url)
+        } finally {
+            activeDownloads.remove(url)
         }
     }
 
@@ -58,23 +66,30 @@ class PdfDownloader(
         private const val MAX_RETRIES = 2
         private const val RETRY_DELAY = 2000L
 
-        private fun defaultHttpClient(): OkHttpClient = OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .build()
+        private val activeDownloads = mutableSetOf<String>()
+
+        private var defaultHttpClient: OkHttpClient? = null
+
+        @JvmStatic
+        fun defaultHttpClient(): OkHttpClient {
+            return defaultHttpClient ?: OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
+                .build().also { defaultHttpClient = it }
+        }
     }
 
     private suspend fun checkAndDownload(downloadUrl: String) {
         val cachedFileName = getCachedFileName(downloadUrl)
 
-        if (cacheStrategy != CacheStrategy.DISABLE_CACHE){
-            CacheManager.clearCacheDir(listener.getContext())
+        if (cacheStrategy != CacheStrategy.DISABLE_CACHE) {
+            CacheManager.clearCacheDir(listener.getContext(), cachedFileName)
         }
 
         val cacheDir = File(
             listener.getContext().cacheDir,
-            "___pdf___cache___/$cachedFileName"
+            "$CACHE_PATH/$cachedFileName"
         ).apply { mkdirs() }
 
         val pdfFile = File(cacheDir, cachedFileName)
@@ -188,15 +203,19 @@ class PdfDownloader(
         }
 
         val contentType = response.header("Content-Type", "")
-        if (!contentType.isNullOrEmpty() 
-            && !(
-                contentType.contains("application/pdf", ignoreCase = true)
-                || contentType.contains("application/octet-stream", ignoreCase = true)
-            )
+        if (contentType?.containsAny(
+                listOf("application/pdf", "application/octet-stream"),
+                ignoreCase = true
+            ) == false
         ) {
-            throw InvalidPdfException("Invalid content type received: $contentType. Expected a PDF file.")
+            throw InvalidPdfException("Invalid content type: $contentType. Expected PDF.")
         }
     }
+}
+
+private fun String?.containsAny(listOf: List<String>, ignoreCase: Boolean): Boolean {
+    listOf.forEach { if (this?.contains(it, ignoreCase) == true) return true }
+    return false
 }
 
 class DownloadFailedException(message: String, cause: Throwable? = null) :
